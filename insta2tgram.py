@@ -41,6 +41,7 @@ async def update():
 	pl=ProfileLooter(CONF["ig_profile"])
 	with open(sent_fp,"r") as f:
 		sent=json.load(f)
+	sent_something=False
 	for media in pl.medias():
 		i=media["id"]
 		sc=media["shortcode"]
@@ -66,8 +67,10 @@ async def update():
 				with fs.openbin(fn) as f:
 					await func(TG_CHAT_ID,f,caption=f"{caption}\n→[original post](https://www.instagram.com/p/{sc})",parse_mode="Markdown")
 			print(f"Sent {i}/{sc}")
+			sent_something=True
 	with open(sent_fp,"w+") as f:
 		json.dump(sent,f)
+	return sent_something
 
 login({"--username":CONF["ig_usrname"],"--password":CONF["ig_passwd"],"--quiet":False})
 
