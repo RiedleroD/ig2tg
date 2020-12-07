@@ -79,9 +79,9 @@ async def looop_haha():
 	while True:
 		print(f"UPDATE TIME {idle_for}")
 		if await update():
-			idle_for+=1
-		else:
 			idle_for=0
+		else:
+			idle_for+=1
 		time.sleep(60*CONF["wait_time"])
 
 asyncio.run(looop_haha())#asyncio probably wasn't the best choice here but eh
