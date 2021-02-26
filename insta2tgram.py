@@ -2,6 +2,9 @@
 print("importing os,sys,io,json,time…")
 import os,sys,io
 import json,time
+def write(s):#little shorthand
+	sys.stdout.write(s)
+	sys.stdout.flush()
 
 print("importing asyncio,commoncodes,fs…")
 import asyncio
@@ -55,34 +58,34 @@ bot=Bot(token=TG_TOKEN)
 print(f"Started bot with Telegram token \033[46m\033[36m{TG_TOKEN}\033[0m\nPolling every {WAIT_TIME} seconds\nlogged in as \033[46m\033[36m{IG_USRNAME}\033[0m:\033[46m\033[36m{IG_PASSWD}\033[0m")
 
 async def update(tg_chatid,ig_profile):
+	write(f"\033[2K\rchecking @{ig_profile}…")
 	await bot.send_chat_action(tg_chatid,types.ChatActions.TYPING)
 	pl=ProfileLooter(ig_profile)
 	with open(sent_fp,"r") as f:
 		sent=json.load(f)
 	sent_something=False
-	for media in pl.medias():
+	for j,media in enumerate(pl.medias()):
 		i=media["id"]
 		sc=media["shortcode"]
+		write(f"\033[2K\rchecking @{ig_profile} ({j}|{i}|{sc})")
 		if i not in sent:
+			write(": \033[sgetting post…")
 			_pl=PostLooter(sc)
 			info=_pl.get_post_info(sc)
 			caption="\n".join(edge["node"]["text"] for edge in info["edge_media_to_caption"]["edges"])
 			with MemoryFS() as fs:
 				if media["is_video"]:
-					print("got video",end=" ")
 					await bot.send_chat_action(tg_chatid,types.ChatActions.RECORD_VIDEO)
 					_pl.download_videos(fs,media_count=1)
 					func=bot.send_video
 					fn=fs.listdir("./")[0]
 					await bot.send_chat_action(tg_chatid,types.ChatActions.UPLOAD_VIDEO)
 				elif media["__typename"].lower()=="graphimage":
-					print("got graphimage",end=" ")
 					await bot.send_chat_action(tg_chatid,types.ChatActions.UPLOAD_PHOTO)
 					_pl.download_pictures(fs,media_count=1)
 					func=bot.send_photo
 					fn=fs.listdir("./")[0]
 				elif media["__typename"].lower()=="graphsidecar":
-					print("got graphsidecar",end=" ")
 					await bot.send_chat_action(tg_chatid,types.ChatActions.UPLOAD_PHOTO)
 					_pl.download_pictures(fs)
 					fn=tuple(fs.listdir("./"))
@@ -93,17 +96,16 @@ async def update(tg_chatid,ig_profile):
 						func=bot.send_media_group
 				else:
 					await bot.send_message(tg_chatid,f"Oh-oh. I've encountered a new post type!\nPlease tell my developer, so he can tell me what I should do with a {media}.")
-					print("\033[31mUNKNOWN MEDIA TYPE AAAAA\033[0m",media)
+					print("\n\033[31mUNKNOWN MEDIA TYPE AAAAA\033[0m",media)
 					break
-				print(fn)
 				if isinstance(fn,tuple):
-					print("sending album…")
+					write("\033[u\033[0Ksending album…")
 					f=[fs.openbin(_fn) for _fn in fn]
 					_media=types.input_media.MediaGroup()
 					for _f in f:
 						_media.attach_photo(_f)
 				else:
-					print("sending file…")
+					write("\033[u\033[0Ksending file…")
 					_media=f=fs.openbin(fn)
 				if len(caption)>100:#telegram media captions have a character limit of 200 chars & I want to have a buffer
 					caption=caption[:100]+"[…]"
@@ -116,21 +118,22 @@ async def update(tg_chatid,ig_profile):
 					else:
 						await func(tg_chatid,_media,caption=text,parse_mode=types.ParseMode.HTML)
 				except exceptions.BadRequest as e:
-					print("Got Bad Request while trying to send message. skipping…")
+					write("\033[u\033[0K\033[31mskipped\033[0m\nGot Bad Request while trying to send message.\n")
 				except exceptions.RetryAfter as e:
-					print("MEEP MEEP FLOOD CONTROL - YOU'RE FLOODING TELEGRAM\nstopping sending messages & waiting for next cycle…")
+					write("\nMEEP MEEP FLOOD CONTROL - YOU'RE FLOODING TELEGRAM\nstopping sending messages & waiting for next cycle…\n")
 					break
 				else:
 					sent.append(i)
+					write("\033[u\033[0K\033[32msent\033[0m\n")
 				if isinstance(f,list):
 					for _f in f:
 						_f.close()
 				else:
 					f.close()
-			if not sent_something:
-				sent_something=True
-				print(f"@{ig_profile} → {tg_chatid}")
-			print(f"Sent {i}/{sc}")
+			sent_something=True
+		# sometimes the page has to be reloaded, which would prolong the time the checking post…
+		# message would be displayed if I didn't do this
+		write(f"\033[2K\rchecking @{ig_profile}…")
 	with open(sent_fp,"w+") as f:
 		json.dump(sent,f)
 	return sent_something
@@ -141,7 +144,6 @@ login({"--username":CONF["ig_usrname"],"--password":CONF["ig_passwd"],"--quiet":
 async def looop_haha():
 	idle_for=0
 	while True:
-		print(f"UPDATE TIME {idle_for}")
 		updated=False
 		for chan in CHANS:
 			if await update(chan["tg_chat_id"],chan["ig_profile"]):
@@ -152,8 +154,16 @@ async def looop_haha():
 			idle_for+=1
 		for t in range(60*CONF["wait_time"]-1,-1,-1):
 			mins,secs=divmod(t,60)
-			print(f"{mins:02d}:{secs:02d}",end="\r")
+			if idle_for==1:
+				th="st"
+			elif idle_for==2:
+				th="nd"
+			elif idle_for==3:
+				th="rd"
+			else:
+				th="th"
+			write(f"\033[2K\rwaiting {mins:02d}:{secs:02d} for the {idle_for}{th} time…")
 			time.sleep(1)
 
-print("running the main loop…")
+print("running the main loop…\n")
 asyncio.run(looop_haha())#asyncio probably wasn't the best choice here but eh
