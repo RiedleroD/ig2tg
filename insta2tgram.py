@@ -6,10 +6,11 @@ def write(s):#little shorthand
 	sys.stdout.write(s)
 	sys.stdout.flush()
 
-print("importing asyncio,commoncodes,fs…")
+print("importing asyncio,commoncodes,fs,traceback…")
 import asyncio
 from commoncodes import CommonCode
 from fs.memoryfs import MemoryFS
+import traceback as tb
 
 print("importing instalooter…")
 from instalooter.looters import ProfileLooter, PostLooter
@@ -55,12 +56,17 @@ IG_PASSWD=CONF["ig_passwd"]
 
 bot=Bot(token=TG_TOKEN)
 
-print(f"Started bot with Telegram token \033[46m\033[36m{TG_TOKEN}\033[0m\nPolling every {WAIT_TIME} seconds\nlogged in as \033[46m\033[36m{IG_USRNAME}\033[0m:\033[46m\033[36m{IG_PASSWD}\033[0m")
+print(f"Started bot with Telegram token \033[46m\033[36m{TG_TOKEN}\033[0m\nPolling every {WAIT_TIME} minutes\nlogged in as \033[46m\033[36m{IG_USRNAME}\033[0m:\033[46m\033[36m{IG_PASSWD}\033[0m")
 
 async def update(tg_chatid,ig_profile):
 	write(f"\033[2K\rchecking @{ig_profile}…")
 	await bot.send_chat_action(tg_chatid,types.ChatActions.TYPING)
-	pl=ProfileLooter(ig_profile)
+	try:
+		pl=ProfileLooter(ig_profile)
+	except Exception as e:
+		write(f"\033[2K\r\033[31munable to get profile @{ig_profile}\033[0m\n")
+		print(tb.format_exc())
+		return False
 	with open(sent_fp,"r") as f:
 		sent=json.load(f)
 	sent_something=False
@@ -71,7 +77,12 @@ async def update(tg_chatid,ig_profile):
 		if i not in sent:
 			write(": \033[sgetting post…")
 			_pl=PostLooter(sc)
-			info=_pl.get_post_info(sc)
+			try:
+				info=_pl.get_post_info(sc)
+			except Exception as e:#because the library I use can randomly throw errors while getting stuff…
+				write("\033[u\033[0K\033[31munable to get post\033[0m\n")
+				print(tb.format_exc())
+				continue
 			caption="\n".join(edge["node"]["text"] for edge in info["edge_media_to_caption"]["edges"])
 			with MemoryFS() as fs:
 				if media["is_video"]:
@@ -147,8 +158,12 @@ async def looop_haha():
 	while True:
 		updated=False
 		for chan in CHANS:
-			if await update(chan["tg_chat_id"],chan["ig_profile"]):
-				updated=True
+			try:
+				if await update(chan["tg_chat_id"],chan["ig_profile"]):
+					updated=True
+			except:
+				print("\nSomething went wrong while checking @{chan['ig_profile']}\n")
+				print(tb.format_exc())
 		if updated:
 			idle_for=0
 		else:
