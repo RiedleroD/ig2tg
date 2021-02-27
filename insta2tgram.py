@@ -124,6 +124,9 @@ async def update(tg_chatid,ig_profile):
 					break
 				else:
 					sent.append(i)
+					write("\033[u\033[0Ksaving sent messages…\033[0m")
+					with open(sent_fp,"w+") as f:
+						json.dump(sent,f)
 					write("\033[u\033[0K\033[32msent\033[0m\n")
 				if isinstance(f,list):
 					for _f in f:
@@ -134,8 +137,6 @@ async def update(tg_chatid,ig_profile):
 		# sometimes the page has to be reloaded, which would prolong the time the checking post…
 		# message would be displayed if I didn't do this
 		write(f"\033[2K\rchecking @{ig_profile}…")
-	with open(sent_fp,"w+") as f:
-		json.dump(sent,f)
 	return sent_something
 
 print("loggin into instagram…")
