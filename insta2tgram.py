@@ -56,7 +56,7 @@ IG_PASSWD=CONF["ig_passwd"]
 
 bot=Bot(token=TG_TOKEN)
 
-print(f"Started bot with Telegram token \033[46m\033[36m{TG_TOKEN}\033[0m\nPolling every {WAIT_TIME} minutes\nlogged in as \033[46m\033[36m{IG_USRNAME}\033[0m:\033[46m\033[36m{IG_PASSWD}\033[0m")
+print(f"Started bot with Telegram token \033[46m\033[36m{TG_TOKEN}\033[0m\nPolling every {WAIT_TIME} minutes")
 
 async def update(tg_chatid,ig_profile):
 	write(f"\033[2K\rchecking @{ig_profile}…")
@@ -150,8 +150,14 @@ async def update(tg_chatid,ig_profile):
 		write(f"\033[2K\rchecking @{ig_profile}…")
 	return sent_something
 
-print("loggin into instagram…")
-login({"--username":CONF["ig_usrname"],"--password":CONF["ig_passwd"],"--quiet":False})
+write("loggin into instagram…")
+try:
+	login({"--username":CONF["ig_usrname"],"--password":CONF["ig_passwd"],"--quiet":False})
+except Exception as e:
+	print("\033[2K\rSomething went wrong while logging into instagram:")
+	print(tb.format_exc())
+else:
+	print("\033[2K\rlogged into instagram as \033[46m\033[36m{IG_USRNAME}\033[0m:\033[46m\033[36m{IG_PASSWD}\033[0m")
 
 async def looop_haha():
 	idle_for=0
@@ -162,7 +168,7 @@ async def looop_haha():
 				if await update(chan["tg_chat_id"],chan["ig_profile"]):
 					updated=True
 			except:
-				print("\nSomething went wrong while checking @{chan['ig_profile']}\n")
+				print(f"\nSomething went wrong while checking @{chan['ig_profile']}\n")
 				print(tb.format_exc())
 		if updated:
 			idle_for=0
